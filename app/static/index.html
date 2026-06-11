@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>内容安全检测 — 管理后台</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f7fa; color: #333; }
+        .header { background: #1a73e8; color: white; padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .header .version { opacity: 0.8; font-size: 14px; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .tabs { display: flex; gap: 4px; margin-bottom: 20px; background: white; padding: 4px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .tab { padding: 10px 20px; border: none; background: none; cursor: pointer; border-radius: 6px; font-size: 14px; font-weight: 500; color: #666; transition: all 0.2s; }
+        .tab.active { background: #1a73e8; color: white; }
+        .tab:hover:not(.active) { background: #e8f0fe; color: #1a73e8; }
+        .card { background: white; border-radius: 8px; padding: 20px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+        .card h2 { font-size: 16px; margin-bottom: 16px; color: #1a73e8; border-bottom: 2px solid #e8f0fe; padding-bottom: 8px; }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 20px; }
+        .stat-card { background: white; border-radius: 8px; padding: 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-align: center; }
+        .stat-card .number { font-size: 32px; font-weight: 700; color: #1a73e8; }
+        .stat-card .label { font-size: 13px; color: #666; margin-top: 4px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 10px 12px; text-align: left; border-bottom: 1px solid #eee; font-size: 14px; }
+        th { background: #f8f9fa; font-weight: 600; color: #555; }
+        tr:hover { background: #f8f9fa; }
+        .btn { padding: 8px 16px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500; transition: all 0.2s; }
+        .btn-primary { background: #1a73e8; color: white; }
+        .btn-primary:hover { background: #1557b0; }
+        .btn-danger { background: #dc3545; color: white; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
+        .btn-sm { padding: 4px 10px; font-size: 12px; }
+        .form-group { margin-bottom: 12px; }
+        .form-group label { display: block; font-size: 13px; font-weight: 600; color: #555; margin-bottom: 4px; }
+        .form-group input, .form-group textarea, .form-group select { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
+        .form-group textarea { min-height: 100px; resize: vertical; }
+        .toolbar { display: flex; gap: 8px; margin-bottom: 16px; align-items: center; flex-wrap: wrap; }
+        .search-input { padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; width: 250px; }
+        .badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; }
+        .badge-high { background: #ffeaa7; color: #856404; }
+        .badge-critical { background: #ff7675; color: white; }
+        .badge-low { background: #dfe6e9; color: #636e72; }
+        .badge-medium { background: #74b9ff; color: white; }
+        .modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal-overlay.show { display: flex; }
+        .modal { background: white; border-radius: 12px; padding: 24px; width: 90%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+        .modal h3 { margin-bottom: 16px; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+        .hidden { display: none; }
+        .toast { position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; font-size: 14px; z-index: 2000; opacity: 0; transition: opacity 0.3s; }
+        .toast.show { opacity: 1; }
+        .pagination { display: flex; gap: 4px; margin-top: 16px; justify-content: center; }
+        .pagination button { padding: 6px 12px; border: 1px solid #ddd; background: white; border-radius: 4px; cursor: pointer; }
+        .pagination button.active { background: #1a73e8; color: white; border-color: #1a73e8; }
+        .violation-yes { color: #dc3545; font-weight: 600; }
+        .violation-no { color: #28a745; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🛡️ 内容安全检测 — 管理后台</h1>
+        <span class="version">v0.2.0</span>
+    </div>
+
+    <div class="container">
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('dashboard')">📊 仪表盘</button>
+            <button class="tab" onclick="switchTab('words')">📝 词库管理</button>
+            <button class="tab" onclick="switchTab('whitelist')">✅ 白名单</button>
+            <button class="tab" onclick="switchTab('logs')">📋 检测日志</button>
+            <button class="tab" onclick="switchTab('test')">🔍 在线检测</button>
+        </div>
+
+        <!-- 仪表盘 -->
+        <div id="tab-dashboard" class="tab-content">
+            <div class="stats-grid" id="stats-grid"></div>
+            <div class="card">
+                <h2>📈 检测统计</h2>
+                <div id="analytics-summary">加载中...</div>
+            </div>
+        </div>
+
+        <!-- 词库管理 -->
+        <div id="tab-words" class="tab-content hidden">
+            <div class="card">
+                <h2>词库概览</h2>
+                <div id="words-overview">加载中...</div>
+            </div>
+            <div class="card">
+                <div class="toolbar">
+                    <select id="word-category" class="search-input" style="width:150px" onchange="loadWords()">
+                        <option value="">选择类别</option>
+                    </select>
+                    <input type="text" id="word-search" class="search-input" placeholder="搜索关键词..." onkeyup="filterWords()">
+                    <button class="btn btn-primary" onclick="showAddWordsModal()">➕ 添加词汇</button>
+                    <button class="btn btn-success" onclick="showImportModal()">📥 导入</button>
+                    <button class="btn btn-primary" onclick="exportWords()">📤 导出</button>
+                    <button class="btn btn-danger" onclick="deleteSelectedWords()">🗑️ 删除选中</button>
+                </div>
+                <table>
+                    <thead><tr><th><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th><th>词汇</th></tr></thead>
+                    <tbody id="words-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 白名单 -->
+        <div id="tab-whitelist" class="tab-content hidden">
+            <div class="card">
+                <h2>白名单管理</h2>
+                <div class="toolbar">
+                    <input type="text" id="wl-text" class="search-input" placeholder="输入白名单文本...">
+                    <input type="text" id="wl-reason" class="search-input" style="width:150px" placeholder="原因">
+                    <button class="btn btn-primary" onclick="addWhitelist()">添加</button>
+                </div>
+                <table>
+                    <thead><tr><th>文本</th><th>原因</th><th>操作</th></tr></thead>
+                    <tbody id="whitelist-tbody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- 检测日志 -->
+        <div id="tab-logs" class="tab-content hidden">
+            <div class="card">
+                <h2>检测日志</h2>
+                <div class="toolbar">
+                    <select id="log-violation" class="search-input" style="width:120px" onchange="loadLogs()">
+                        <option value="">全部</option>
+                        <option value="true">违规</option>
+                        <option value="false">正常</option>
+                    </select>
+                    <select id="log-risk" class="search-input" style="width:120px" onchange="loadLogs()">
+                        <option value="">全部风险</option>
+                        <option value="low">低</option>
+                        <option value="medium">中</option>
+                        <option value="high">高</option>
+                        <option value="critical">严重</option>
+                    </select>
+                    <button class="btn btn-primary" onclick="loadLogs()">🔄 刷新</button>
+                </div>
+                <table>
+                    <thead><tr><th>请求ID</th><th>文本预览</th><th>违规</th><th>风险</th><th>类别</th><th>耗时</th><th>时间</th></tr></thead>
+                    <tbody id="logs-tbody"></tbody>
+                </table>
+                <div class="pagination" id="logs-pagination"></div>
+            </div>
+        </div>
+
+        <!-- 在线检测 -->
+        <div id="tab-test" class="tab-content hidden">
+            <div class="card">
+                <h2>在线文本检测</h2>
+                <div class="form-group">
+                    <label>输入待检测文本</label>
+                    <textarea id="test-text" rows="4" placeholder="请输入要检测的文本内容..."></textarea>
+                </div>
+                <button class="btn btn-primary" onclick="testDetect()" style="margin-bottom:16px">🔍 开始检测</button>
+                <div id="test-result"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加词汇弹窗 -->
+    <div class="modal-overlay" id="add-words-modal">
+        <div class="modal">
+            <h3>添加敏感词</h3>
+            <div class="form-group">
+                <label>词汇（每行一个）</label>
+                <textarea id="new-words" rows="6" placeholder="输入敏感词，每行一个"></textarea>
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="closeModal('add-words-modal')">取消</button>
+                <button class="btn btn-primary" onclick="addWords()">确认添加</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入弹窗 -->
+    <div class="modal-overlay" id="import-modal">
+        <div class="modal">
+            <h3>导入词库</h3>
+            <div class="form-group">
+                <label>选择文件（每行一个词）</label>
+                <input type="file" id="import-file" accept=".txt,.csv">
+            </div>
+            <div class="modal-actions">
+                <button class="btn" onclick="closeModal('import-modal')">取消</button>
+                <button class="btn btn-primary" onclick="importWords()">导入</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        const API_BASE = '/api/v1';
+        const API_KEY = '';
+
+        function headers() {
+            const h = { 'Content-Type': 'application/json', 'X-Admin-Request': 'true' };
+            if (API_KEY) h['X-API-Key'] = API_KEY;
+            return h;
+        }
+
+        async function api(path, options = {}) {
+            const resp = await fetch(API_BASE + path, { headers: headers(), ...options });
+            if (!resp.ok) {
+                const err = await resp.json().catch(() => ({ detail: resp.statusText }));
+                throw new Error(err.detail || '请求失败');
+            }
+            return resp.json();
+        }
+
+        function toast(msg, duration = 3000) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), duration);
+        }
+
+        function switchTab(name) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab').forEach(el => el.classList.remove('active'));
+            document.getElementById('tab-' + name).classList.remove('hidden');
+            event.target.classList.add('active');
+
+            if (name === 'dashboard') loadDashboard();
+            if (name === 'words') loadWordsOverview();
+            if (name === 'whitelist') loadWhitelist();
+            if (name === 'logs') loadLogs();
+        }
+
+        // ==================== 仪表盘 ====================
+        async function loadDashboard() {
+            try {
+                const stats = await api('/stats');
+                const grid = document.getElementById('stats-grid');
+                const totalWords = Object.values(stats.word_counts || {}).reduce((a, b) => a + b, 0);
+                grid.innerHTML = `
+                    <div class="stat-card"><div class="number">${totalWords}</div><div class="label">总词汇量</div></div>
+                    <div class="stat-card"><div class="number">${stats.total_requests || 0}</div><div class="label">总请求数</div></div>
+                    <div class="stat-card"><div class="number">${stats.total_violations || 0}</div><div class="label">违规检测数</div></div>
+                    <div class="stat-card"><div class="number">${stats.model_loaded ? '✅' : '❌'}</div><div class="label">模型状态</div></div>
+                `;
+
+                try {
+                    const summary = await api('/analytics/summary');
+                    document.getElementById('analytics-summary').innerHTML = `
+                        <p>总检测数: <strong>${summary.total_detections || 0}</strong> |
+                        违规数: <strong>${summary.violation_count || 0}</strong> |
+                        违规率: <strong>${((summary.violation_rate || 0) * 100).toFixed(1)}%</strong> |
+                        平均耗时: <strong>${(summary.avg_processing_time_ms || 0).toFixed(1)}ms</strong></p>
+                    `;
+                } catch { document.getElementById('analytics-summary').innerHTML = '<p>暂无统计数据</p>'; }
+            } catch (e) { toast('加载失败: ' + e.message); }
+        }
+
+        // ==================== 词库管理 ====================
+        async function loadWordsOverview() {
+            try {
+                const data = await api('/words');
+                const sel = document.getElementById('word-category');
+                sel.innerHTML = '<option value="">选择类别</option>';
+                data.categories.forEach(c => {
+                    sel.innerHTML += `<option value="${c.category}">${c.category} (${c.count})</option>`;
+                });
+                document.getElementById('words-overview').innerHTML = data.categories.map(c =>
+                    `<span style="display:inline-block;margin:4px 8px;padding:6px 12px;background:#e8f0fe;border-radius:6px;font-size:14px">${c.category}: <strong>${c.count}</strong> 词</span>`
+                ).join('') + `<p style="margin-top:8px;color:#666">总计: <strong>${data.total}</strong> 词</p>`;
+            } catch (e) { toast('加载失败: ' + e.message); }
+        }
+
+        let allWords = [];
+        async function loadWords() {
+            const cat = document.getElementById('word-category').value;
+            if (!cat) return;
+            try {
+                const data = await api('/words/' + cat);
+                allWords = data.words || [];
+                renderWords(allWords);
+            } catch (e) { toast('加载失败: ' + e.message); }
+        }
+
+        function renderWords(words) {
+            const tbody = document.getElementById('words-tbody');
+            tbody.innerHTML = words.map(w =>
+                `<tr><td><input type="checkbox" class="word-cb" value="${w}"></td><td>${w}</td></tr>`
+            ).join('');
+        }
+
+        function filterWords() {
+            const q = document.getElementById('word-search').value;
+            renderWords(q ? allWords.filter(w => w.includes(q)) : allWords);
+        }
+
+        function toggleSelectAll() {
+            const checked = document.getElementById('select-all').checked;
+            document.querySelectorAll('.word-cb').forEach(cb => cb.checked = checked);
+        }
+
+        function showAddWordsModal() {
+            if (!document.getElementById('word-category').value) { toast('请先选择类别'); return; }
+            document.getElementById('add-words-modal').classList.add('show');
+        }
+
+        function showImportModal() {
+            if (!document.getElementById('word-category').value) { toast('请先选择类别'); return; }
+            document.getElementById('import-modal').classList.add('show');
+        }
+
+        function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+        async function addWords() {
+            const cat = document.getElementById('word-category').value;
+            const text = document.getElementById('new-words').value;
+            const words = text.split('\n').map(w => w.trim()).filter(Boolean);
+            if (!words.length) { toast('请输入词汇'); return; }
+            try {
+                await api('/words/' + cat, { method: 'POST', body: JSON.stringify({ words }) });
+                toast(`成功添加 ${words.length} 个词汇`);
+                closeModal('add-words-modal');
+                document.getElementById('new-words').value = '';
+                loadWords();
+                loadWordsOverview();
+            } catch (e) { toast('添加失败: ' + e.message); }
+        }
+
+        async function deleteSelectedWords() {
+            const cat = document.getElementById('word-category').value;
+            const selected = [...document.querySelectorAll('.word-cb:checked')].map(cb => cb.value);
+            if (!selected.length) { toast('请选择要删除的词汇'); return; }
+            if (!confirm(`确认删除 ${selected.length} 个词汇？`)) return;
+            try {
+                await api('/words/' + cat, { method: 'DELETE', body: JSON.stringify({ words: selected }) });
+                toast(`成功删除 ${selected.length} 个词汇`);
+                loadWords();
+                loadWordsOverview();
+            } catch (e) { toast('删除失败: ' + e.message); }
+        }
+
+        async function importWords() {
+            const cat = document.getElementById('word-category').value;
+            const file = document.getElementById('import-file').files[0];
+            if (!file) { toast('请选择文件'); return; }
+            const formData = new FormData();
+            formData.append('file', file);
+            try {
+                const h = { 'X-Admin-Request': 'true' };
+                if (API_KEY) h['X-API-Key'] = API_KEY;
+                const resp = await fetch(API_BASE + '/words/' + cat + '/import', { method: 'POST', headers: h, body: formData });
+                const data = await resp.json();
+                toast(`导入完成: ${data.added} 个新词`);
+                closeModal('import-modal');
+                loadWords();
+                loadWordsOverview();
+            } catch (e) { toast('导入失败: ' + e.message); }
+        }
+
+        function exportWords() {
+            const cat = document.getElementById('word-category').value;
+            if (!cat) { toast('请先选择类别'); return; }
+            window.open(API_BASE + '/words/' + cat + '/export', '_blank');
+        }
+
+        // ==================== 白名单 ====================
+        async function loadWhitelist() {
+            try {
+                const data = await api('/whitelist');
+                const tbody = document.getElementById('whitelist-tbody');
+                tbody.innerHTML = (data.entries || []).map(e =>
+                    `<tr><td>${e.text}</td><td>${e.reason || '-'}</td>
+                    <td><button class="btn btn-danger btn-sm" onclick="removeWhitelist('${e.text}')">删除</button></td></tr>`
+                ).join('') || '<tr><td colspan="3" style="text-align:center;color:#999">暂无白名单条目</td></tr>';
+            } catch (e) { toast('加载失败: ' + e.message); }
+        }
+
+        async function addWhitelist() {
+            const text = document.getElementById('wl-text').value.trim();
+            const reason = document.getElementById('wl-reason').value.trim();
+            if (!text) { toast('请输入白名单文本'); return; }
+            try {
+                await api('/whitelist', { method: 'POST', body: JSON.stringify({ entries: [{ text, reason }] }) });
+                toast('添加成功');
+                document.getElementById('wl-text').value = '';
+                document.getElementById('wl-reason').value = '';
+                loadWhitelist();
+            } catch (e) { toast('添加失败: ' + e.message); }
+        }
+
+        async function removeWhitelist(text) {
+            try {
+                await api('/whitelist', { method: 'DELETE', body: JSON.stringify({ entries: [{ text }] }) });
+                toast('删除成功');
+                loadWhitelist();
+            } catch (e) { toast('删除失败: ' + e.message); }
+        }
+
+        // ==================== 检测日志 ====================
+        let logPage = 1;
+        async function loadLogs() {
+            const violation = document.getElementById('log-violation').value;
+            const risk = document.getElementById('log-risk').value;
+            let url = `/logs?page=${logPage}&page_size=20`;
+            if (violation) url += `&is_violation=${violation}`;
+            if (risk) url += `&risk_level=${risk}`;
+            try {
+                const data = await api(url);
+                const tbody = document.getElementById('logs-tbody');
+                tbody.innerHTML = (data.logs || []).map(log =>
+                    `<tr>
+                        <td title="${log.request_id}">${log.request_id.substring(0, 8)}...</td>
+                        <td>${(log.text_preview || '').substring(0, 30)}</td>
+                        <td class="${log.is_violation ? 'violation-yes' : 'violation-no'}">${log.is_violation ? '是' : '否'}</td>
+                        <td><span class="badge badge-${log.risk_level}">${log.risk_level}</span></td>
+                        <td>${Array.isArray(log.categories_hit) ? log.categories_hit.join(', ') : '-'}</td>
+                        <td>${(log.processing_time_ms || 0).toFixed(1)}ms</td>
+                        <td>${log.created_at || '-'}</td>
+                    </tr>`
+                ).join('') || '<tr><td colspan="7" style="text-align:center;color:#999">暂无日志</td></tr>';
+
+                const totalPages = Math.ceil(data.total / 20);
+                const pag = document.getElementById('logs-pagination');
+                pag.innerHTML = '';
+                for (let i = 1; i <= Math.min(totalPages, 10); i++) {
+                    pag.innerHTML += `<button class="${i === logPage ? 'active' : ''}" onclick="logPage=${i};loadLogs()">${i}</button>`;
+                }
+            } catch (e) { toast('加载失败: ' + e.message); }
+        }
+
+        // ==================== 在线检测 ====================
+        async function testDetect() {
+            const text = document.getElementById('test-text').value.trim();
+            if (!text) { toast('请输入文本'); return; }
+            try {
+                const result = await api('/detect', { method: 'POST', body: JSON.stringify({ text, enable_model: true }) });
+                const el = document.getElementById('test-result');
+                el.innerHTML = `
+                    <div class="card" style="border-left: 4px solid ${result.is_violation ? '#dc3545' : '#28a745'}">
+                        <p><strong>违规:</strong> ${result.is_violation ? '⚠️ 是' : '✅ 否'} |
+                        <strong>风险等级:</strong> <span class="badge badge-${result.risk_level}">${result.risk_level}</span> |
+                        <strong>耗时:</strong> ${result.processing_time_ms}ms</p>
+                        ${result.violations.length ? '<h3 style="margin:12px 0 8px;font-size:14px">违规详情:</h3>' : ''}
+                        ${result.violations.map(v => `<p style="font-size:13px;margin:4px 0">• [${v.category}] ${v.source === 'sensitive_word' ? '命中词: ' + v.matched_word + ' (位置: ' + v.position?.join('-') + ')' : '模型判定'} 置信度: ${(v.confidence * 100).toFixed(0)}%</p>`).join('')}
+                    </div>
+                `;
+            } catch (e) { toast('检测失败: ' + e.message); }
+        }
+
+        // 初始化
+        loadDashboard();
+    </script>
+</body>
+</html>

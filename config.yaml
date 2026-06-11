@@ -1,0 +1,95 @@
+# 内容安全检测工具 - 全局配置
+
+server:
+  host: "0.0.0.0"
+  port: 8000
+  workers: 1
+  reload: false
+
+# API 鉴权
+auth:
+  enabled: true
+  api_keys:
+    - "sk-content-sec-dev-001"
+    - "sk-content-sec-dev-002"
+
+# 敏感词库路径
+word_lists:
+  politics:
+    path: "sensitive_words/politics.txt"
+    enabled: true
+    severity: "high"
+  gambling:
+    path: "sensitive_words/gambling.txt"
+    enabled: true
+    severity: "medium"
+  pornography:
+    path: "sensitive_words/pornography.txt"
+    enabled: true
+    severity: "high"
+
+# 预处理器配置
+preprocessor:
+  traditional_to_simplified: true
+  normalize_variants: true
+  remove_special_chars: true
+  skip_chars: " ,.，。、；：！？·~`!@#$%^&*()-_=+[]{}|\\/<>?《》【】「」『』★☆◆◇●○◎☉☐☑✓✗✘→←↑↓↗↘➤➔➜➝➞➟➡"
+
+# 检测引擎配置
+detector:
+  max_batch_size: 100
+  max_text_length: 10000
+  # 检测策略: sensitive_only | model_only | combined
+  strategy: "combined"
+  risk_thresholds:
+    critical_min_matches: 5
+    high_min_matches: 1
+  # 批量检测优化
+  batch_parallel: true
+  batch_max_workers: 4
+  batch_sequential_threshold: 10
+
+# 白名单配置
+whitelist:
+  enabled: false
+  file: "sensitive_words/whitelist.txt"
+  # 匹配模式: exact | contains | regex
+  mode: "exact"
+  bypass_categories: []  # 空 = 绕过所有类别
+  entries: []  # 内联白名单条目
+  # entries:
+  #   - text: "官方公告"
+  #     reason: "official"
+  #   - text: "lottery"
+  #     categories: ["gambling"]
+
+# 日志存储配置
+storage:
+  enabled: true
+  backend: "sqlite"
+  db_path: "data/detection_logs.db"
+  retention_days: 90
+  async_flush: true
+
+# 模型推理配置
+model:
+  enabled: true
+  model_path: "models/content_security_model.pkl"
+  vectorizer_path: "models/tfidf_vectorizer.pkl"
+  training_data: "training/data/train_data.json"
+  # 模型置信度阈值
+  confidence_threshold: 0.6
+  # 类别标签映射
+  labels:
+    - "safe"
+    - "politics"
+    - "gambling"
+    - "pornography"
+
+# 日志配置
+logging:
+  level: "INFO"
+  format: "%(asctime)s | %(levelname)-8s | %(name)s | %(message)s"
+  file: "logs/detector.log"
+  max_bytes: 10485760
+  backup_count: 5

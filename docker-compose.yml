@@ -1,0 +1,21 @@
+version: "3.8"
+
+services:
+  content-security:
+    build: .
+    container_name: content-security-api
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./sensitive_words:/app/sensitive_words
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./models:/app/models
+    environment:
+      - CONTENT_SECURITY_SERVER__PORT=8000
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "1.0"
