@@ -30,6 +30,15 @@ class WordManager:
         self._word_sets: Dict[str, Set[str]] = {}
         self._file_mtimes: Dict[str, float] = {}
         self._lock = threading.Lock()
+        # 初始化预处理器（用于词汇归一化）
+        from app.preprocessor import Preprocessor
+        prep_cfg = config.get_preprocessor_config()
+        self._preprocessor = Preprocessor(
+            skip_chars=prep_cfg.get("skip_chars", ""),
+            traditional_to_simplified=prep_cfg.get("traditional_to_simplified", True),
+            normalize_variants=prep_cfg.get("normalize_variants", True),
+            remove_special_chars=prep_cfg.get("remove_special_chars", True),
+        )
 
     def load_all(self) -> Dict[str, int]:
         """
@@ -74,8 +83,9 @@ class WordManager:
                     for line in f:
                         word = line.strip()
                         if word and not word.startswith("#"):
-                            tree.insert(word)
-                            words.add(word)
+                            normalized = self._preprocessor.normalize(word)
+                            tree.insert(normalized)
+                            words.add(word)  # 保留原始词用于展示
             except FileNotFoundError:
                 logger.warning(f"词库文件不存在: {filepath}，将创建空词库")
                 # 创建空文件
@@ -129,18 +139,21 @@ class WordManager:
         if not word:
             return False
 
+        # 归一化词汇（与检测时的预处理保持一致）
+        normalized = self._preprocessor.normalize(word)
+
         with self._lock:
             if category not in self._trees:
                 self._trees[category] = TrieTree()
                 self._word_sets[category] = set()
 
             tree = self._trees[category]
-            if word in self._word_sets[category]:
+            if normalized in self._word_sets[category]:
                 return False
 
-            tree.insert(word)
-            self._word_sets[category].add(word)
-            logger.info(f"添加词汇: [{category}] {word}")
+            tree.insert(normalized)
+            self._word_sets[category].add(normalized)
+            logger.info(f"添加词汇: [{category}] {word} -> 归一化: {normalized}")
             return True
 
     def remove_word(self, category: str, word: str) -> bool:
@@ -149,13 +162,15 @@ class WordManager:
         if not word:
             return False
 
+        normalized = self._preprocessor.normalize(word)
+
         with self._lock:
             tree = self._trees.get(category)
             if not tree:
                 return False
 
-            if tree.remove(word):
-                self._word_sets[category].discard(word)
+            if tree.remove(normalized):
+                self._word_sets[category].discard(normalized)
                 logger.info(f"删除词汇: [{category}] {word}")
                 return True
             return False

@@ -1,5 +1,6 @@
 """FastAPI 路由与接口定义"""
 
+import json
 import time
 import uuid
 from pathlib import Path
@@ -7,6 +8,17 @@ from typing import List, Optional
 
 from fastapi import Depends, FastAPI, HTTPException, Header, Query, Request, UploadFile, File
 from fastapi.responses import JSONResponse, PlainTextResponse
+
+
+class UnicodeJSONResponse(JSONResponse):
+    """JSON 响应类 — 保留中文字符，不进行 Unicode 转义"""
+
+    def render(self, content) -> bytes:
+        return json.dumps(
+            content,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        ).encode("utf-8")
 
 from app.config import Config, config
 from app.detector import ContentDetector
@@ -97,6 +109,7 @@ def create_app() -> FastAPI:
         version="0.2.0",
         docs_url=None,       # 禁用默认 /docs，改为自定义
         redoc_url=None,      # 禁用默认 /redoc
+        default_response_class=UnicodeJSONResponse,
     )
 
     # 声明 API Key 鉴权方案（让 Swagger UI 显示 Authorize 按钮）

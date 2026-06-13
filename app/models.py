@@ -58,7 +58,7 @@ class DetectionRequest(BaseModel):
 
 class BatchDetectionRequest(BaseModel):
     """批量检测请求"""
-    texts: List[str] = Field(..., description="待检测文本列表", min_length=1)
+    texts: List[str] = Field(..., description="待检测文本列表", min_length=1, max_length=100)
     categories: Optional[List[str]] = Field(None, description="指定检测类别")
     enable_model: bool = Field(True, description="是否启用模型推理")
 
